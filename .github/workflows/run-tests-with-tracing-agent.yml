@@ -52,11 +52,31 @@ jobs:
               run: |
                   perl -pi -e "s/^\s*ballerinaLangVersion=.*/ballerinaLangVersion=${{ env.BALLERINA_LANG_VERSION }}/" gradle.properties
                   ./gradlew build -x test
+  
+            - name: Start test Docker containers
+              env:
+                  packageUser: ${{ github.actor }}
+                  packagePAT: ${{ secrets.GITHUB_TOKEN }}
+                  CLIENT_ID: ${{ secrets.CLIENT_ID }}
+                  CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+                  REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+              run: ./gradlew startTestDockerContainers
+                  
 
             - name: Run tests with agent
+              continue-on-error: true
               run: |
                    ../target/ballerina-runtime/bin/bal test --graalvm-tracing-agent
               working-directory: ./ballerina
+              
+            - name: Stop test Docker containers
+              env:
+                  packageUser: ${{ github.actor }}
+                  packagePAT: ${{ secrets.GITHUB_TOKEN }}
+                  CLIENT_ID: ${{ secrets.CLIENT_ID }}
+                  CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+                  REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+              run: ./gradlew stopTestDockerContainers
 
             - name: Output configuration files
               run: |
