@@ -62,11 +62,16 @@ jobs:
                   REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
               run: ./gradlew startTestDockerContainers
                   
-
             - name: Run tests with agent
               continue-on-error: true
               run: |
                    ../target/ballerina-runtime/bin/bal test --graalvm-tracing-agent
+              working-directory: ./ballerina
+              
+            - name: Run GraalVM test with configs
+              continue-on-error: true
+              run: |
+                   ../target/ballerina-runtime/bin/bal test --graalvm --graalvm-build-options="-H:ConfigurationFileDirectories=./target/native-image-configs"
               working-directory: ./ballerina
               
             - name: Stop test Docker containers
