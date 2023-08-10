@@ -78,12 +78,32 @@ jobs:
                   REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
               run: ./gradlew stopTestDockerContainers
 
-            - name: Output configuration files
+            - name: Output JNI configuration
               run: |
-                cat jni-config.json >> $GITHUB_STEP_SUMMARY
-                cat reflect-config.json >> $GITHUB_STEP_SUMMARY
-                cat resource-config.json >> $GITHUB_STEP_SUMMARY
-                cat proxy-config.json >> $GITHUB_STEP_SUMMARY
-                cat serialization-config.json >> $GITHUB_STEP_SUMMARY
-                cat predefined-classes-config.json >> $GITHUB_STEP_SUMMARY
+                cat jni-config.json | json_pp >> $GITHUB_STEP_SUMMARY
+              working-directory: ./ballerina/target/native-image-configs
+
+            - name: Output Reflection configuration
+              run: |
+                cat reflect-config.json | json_pp >> $GITHUB_STEP_SUMMARY
+              working-directory: ./ballerina/target/native-image-configs
+                
+            - name: Output Resource configuration
+              run: |
+                cat resource-config.json | json_pp >> $GITHUB_STEP_SUMMARY
+              working-directory: ./ballerina/target/native-image-configs
+
+            - name: Output Proxy configuration
+              run: |
+                cat proxy-config.json | json_pp >> $GITHUB_STEP_SUMMARY
+              working-directory: ./ballerina/target/native-image-configs
+                
+            - name: Output Serialization configuration
+              run: |
+                cat serialization-config.json | json_pp >> $GITHUB_STEP_SUMMARY
+              working-directory: ./ballerina/target/native-image-configs
+                
+            - name: Output Predefined-classes configuration
+              run: |
+                cat predefined-classes-config.json | json_pp >> $GITHUB_STEP_SUMMARY
               working-directory: ./ballerina/target/native-image-configs
