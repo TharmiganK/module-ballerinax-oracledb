@@ -71,7 +71,7 @@ jobs:
             - name: Run GraalVM test with configs
               continue-on-error: true
               run: |
-                   ../target/ballerina-runtime/bin/bal test --graalvm --graalvm-build-options="-H:ConfigurationFileDirectories=./target/native-image-configs"
+                   ../target/ballerina-runtime/bin/bal test --graalvm --graalvm-build-options="-H:ConfigurationFileDirectories=./target/native-image-configs -J-Xmx7G"
               working-directory: ./ballerina
               
             - name: Stop test Docker containers
