@@ -56,12 +56,14 @@ jobs:
             - name: Run tests with agent
               run: |
                    ../target/ballerina-runtime/bin/bal test --graalvm-tracing-agent
+              working-directory: ./ballerina
 
             - name: Output configuration files
               run: |
-                cat ./target/native-image-configs/jni-config.json >> $GITHUB_STEP_SUMMARY
-                cat ./target/native-image-configs/reflect-config.json >> $GITHUB_STEP_SUMMARY
-                cat ./target/native-image-configs/resource-config.json >> $GITHUB_STEP_SUMMARY
-                cat ./target/native-image-configs/proxy-config.json >> $GITHUB_STEP_SUMMARY
-                cat ./target/native-image-configs/serialization-config.json >> $GITHUB_STEP_SUMMARY
-                cat ./target/native-image-configs/predefined-classes-config.json >> $GITHUB_STEP_SUMMARY
+                cat jni-config.json >> $GITHUB_STEP_SUMMARY
+                cat reflect-config.json >> $GITHUB_STEP_SUMMARY
+                cat resource-config.json >> $GITHUB_STEP_SUMMARY
+                cat proxy-config.json >> $GITHUB_STEP_SUMMARY
+                cat serialization-config.json >> $GITHUB_STEP_SUMMARY
+                cat predefined-classes-config.json >> $GITHUB_STEP_SUMMARY
+              working-directory: ./ballerina/target/native-image-configs
