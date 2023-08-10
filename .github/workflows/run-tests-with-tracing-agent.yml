@@ -1,0 +1,67 @@
+name: Run tests with GraalVM tracing agent
+
+on: [workflow_dispatch]
+
+jobs:
+    ubuntu-run:
+        name: Run tests on Ubuntu
+        runs-on: ubuntu-latest
+        steps:
+            - name: Set up GraalVM
+              uses: graalvm/setup-graalvm@v1
+              with:
+                  version: 'latest'
+                  java-version: '17'
+                  components: 'native-image'
+                  github-token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Check GraalVM installation
+              run: |
+                  echo "GRAALVM_HOME: ${{ env.GRAALVM_HOME }}"
+                  echo "JAVA_HOME: ${{ env.JAVA_HOME }}"
+                  native-image --version
+
+            - name: Checkout Ballerina Lang Repository
+              uses: actions/checkout@v3
+              with:
+                  repository: 'TharmiganK/ballerina-lang'
+                  ref: 'graalvm'
+
+            - name: Set Ballerina Lang version
+              run: |
+                  VERSION=$((grep -w 'version' | cut -d= -f2) < gradle.properties | rev | cut --complement -d- -f1 | rev)
+                  LANG_VERSION=$VERSION-NATIVE
+                  echo "BALLERINA_LANG_VERSION=$LANG_VERSION" >> $GITHUB_ENV
+                  echo "BALLERINA_LANG_VERSION: $LANG_VERSION"
+
+            - name: Build Ballerina Lang
+              run: |
+                  perl -pi -e "s/^\s*version=.*/version=${{ env.BALLERINA_LANG_VERSION }}/" gradle.properties
+                  ./gradlew build -x check -x test publishToMavenLocal --scan --no-daemon
+
+            - name: Checkout Module Repository
+              uses: actions/checkout@v3
+
+            - name: Build with Gradle
+              env:
+                  packageUser: ${{ github.actor }}
+                  packagePAT: ${{ secrets.GITHUB_TOKEN }}
+                  CLIENT_ID: ${{ secrets.CLIENT_ID }}
+                  CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+                  REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+              run: |
+                  perl -pi -e "s/^\s*ballerinaLangVersion=.*/ballerinaLangVersion=${{ env.BALLERINA_LANG_VERSION }}/" gradle.properties
+                  ./gradlew build -x test
+
+            - name: Run tests with agent
+              run: |
+                   ../target/ballerina-runtime/bin/bal test --graalvm-tracing-agent
+
+            - name: Output configuration files
+              run: |
+                cat ./target/native-image-configs/jni-config.json >> $GITHUB_STEP_SUMMARY
+                cat ./target/native-image-configs/reflect-config.json >> $GITHUB_STEP_SUMMARY
+                cat ./target/native-image-configs/resource-config.json >> $GITHUB_STEP_SUMMARY
+                cat ./target/native-image-configs/proxy-config.json >> $GITHUB_STEP_SUMMARY
+                cat ./target/native-image-configs/serialization-config.json >> $GITHUB_STEP_SUMMARY
+                cat ./target/native-image-configs/predefined-classes-config.json >> $GITHUB_STEP_SUMMARY
