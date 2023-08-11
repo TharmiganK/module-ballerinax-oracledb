@@ -1,0 +1,121 @@
+name: Test with GraalVM tracing agent
+
+on:
+    workflow_dispatch:
+        inputs:
+            additional_build_flags:
+                description: Additional build flags
+                required: false
+                type: string
+                default: ''
+            test_directories:
+                description: Test directories
+                required: false
+                type: string
+                default: ''
+
+jobs:
+    ubuntu-run:
+        name: Run tests on Ubuntu
+        runs-on: ubuntu-latest
+        steps:
+            - name: Set up GraalVM
+              uses: graalvm/setup-graalvm@v1
+              with:
+                  version: 'latest'
+                  java-version: '17'
+                  components: 'native-image'
+                  github-token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Check GraalVM installation
+              run: |
+                  echo "GRAALVM_HOME: ${{ env.GRAALVM_HOME }}"
+                  echo "JAVA_HOME: ${{ env.JAVA_HOME }}"
+                  native-image --version
+
+            - name: Checkout Ballerina Lang Repository
+              uses: actions/checkout@v3
+              with:
+                  repository: 'TharmiganK/ballerina-lang'
+                  ref: 'graalvm-agent'
+
+            - name: Set Ballerina Lang version
+              run: |
+                  VERSION=$((grep -w 'version' | cut -d= -f2) < gradle.properties | rev | cut --complement -d- -f1 | rev)
+                  LANG_VERSION=$VERSION-NATIVE
+                  echo "BALLERINA_LANG_VERSION=$LANG_VERSION" >> $GITHUB_ENV
+                  echo "BALLERINA_LANG_VERSION: $LANG_VERSION"
+
+            - name: Build Ballerina Lang
+              run: |
+                  perl -pi -e "s/^\s*version=.*/version=${{ env.BALLERINA_LANG_VERSION }}/" gradle.properties
+                  ./gradlew build -x check -x test publishToMavenLocal --scan --no-daemon
+
+            - name: Checkout Module Repository
+              uses: actions/checkout@v3
+
+            - name: Run tests with the agent
+              continue-on-error: true
+              env:
+                  packageUser: ${{ github.actor }}
+                  packagePAT: ${{ secrets.GITHUB_TOKEN }}
+                  CLIENT_ID: ${{ secrets.CLIENT_ID }}
+                  CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+                  REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+              run: |
+                  perl -pi -e "s/^\s*ballerinaLangVersion=.*/ballerinaLangVersion=${{ env.BALLERINA_LANG_VERSION }}/" gradle.properties
+                  ./gradlew build ${{ inputs.additional_build_flags }}
+
+            - name: Set native-image configurations
+              run: |
+                  CURRENT_DIR=$(pwd)
+                  echo "NativeImageArgs = -H:ConfigurationFileDirectories=./target/native-image-configs -J-Xmx7G" > default_native.properties
+                  echo "NATIVE_IMAGE_CONFIG_FILE=$CURRENT_DIR/default_native.properties" >> $GITHUB_ENV
+                  echo "NATIVE_IMAGE_CONFIG_FILE: $CURRENT_DIR/default_native.properties"
+
+            - name: Merge trace configurations
+              if: ${{ inputs.test_directories != '' }}
+              run: |
+                  input=${{ inputs.test_directories }}
+                  output=$(echo "$input" | awk -F, '{ for (i=1; i<=NF; i++) { print "--input-dir=" $i "/target/native-image-configs" } }' | xargs)
+                  native-image-configure $output --output-dir=./ballerina/target/native-image-configs
+
+            - name: Output JNI configuration
+              run: |
+                cat jni-config.json | json_pp
+              working-directory: ./ballerina/target/native-image-configs
+
+            - name: Output Reflection configuration
+              run: |
+                cat reflect-config.json | json_pp
+              working-directory: ./ballerina/target/native-image-configs
+                
+            - name: Output Resource configuration
+              run: |
+                cat resource-config.json | json_pp
+              working-directory: ./ballerina/target/native-image-configs
+
+            - name: Output Proxy configuration
+              run: |
+                cat proxy-config.json | json_pp
+              working-directory: ./ballerina/target/native-image-configs
+                
+            - name: Output Serialization configuration
+              run: |
+                cat serialization-config.json | json_pp 
+              working-directory: ./ballerina/target/native-image-configs
+                
+            - name: Output Predefined-classes configuration
+              run: |
+                cat predefined-classes-config.json | json_pp
+              working-directory: ./ballerina/target/native-image-configs
+
+            - name: Run tests with GraalVM
+              env:
+                  packageUser: ${{ github.actor }}
+                  packagePAT: ${{ secrets.GITHUB_TOKEN }}
+                  CLIENT_ID: ${{ secrets.CLIENT_ID }}
+                  CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+                  REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+              run: |
+                  ./gradlew build -PbalGraalVMTest ${{ inputs.additional_build_flags }}
